@@ -1,4 +1,4 @@
-"""Разбор статьи в таблицы дословных цитат.
+"""Прозектор: разбор статьи в таблицы дословных цитат.
 
 Цитата — предложение из текста статьи без пересказа и без перевода.
 Колонка «без ссылок» снимает только маркеры цитирования.
@@ -290,7 +290,7 @@ class Quote:
 
 
 @dataclass
-class Razbor:
+class Prozektor:
     document: Document
     quotes: list[Quote]
     sentences_seen: int = 0
@@ -473,7 +473,7 @@ def classify(text: str, zone: str, *, protocol: bool) -> set[str]:
     return buckets
 
 
-def razbor_of(document: Document) -> Razbor:
+def prozektor_of(document: Document) -> Prozektor:
     quotes: list[Quote] = []
     seen: set[tuple[str, str]] = set()
     sentences_seen = 0
@@ -494,7 +494,7 @@ def razbor_of(document: Document) -> Razbor:
                     continue
                 seen.add(key)
                 quotes.append(Quote(bucket=bucket, section=block.section, text=sentence, plain=plain))
-    return Razbor(document=document, quotes=quotes, sentences_seen=sentences_seen)
+    return Prozektor(document=document, quotes=quotes, sentences_seen=sentences_seen)
 
 
 def parse_article(text: str, *, source: str = "") -> Document:
@@ -609,21 +609,21 @@ def parse_jats(xml: str, *, source: str = "") -> Document:
     )
 
 
-def render_markdown(razbor: Razbor) -> str:
-    document = razbor.document
+def render_markdown(prozektor: Prozektor) -> str:
+    document = prozektor.document
     lines = [
-        f"# Разбор: {document.title}",
+        f"# Прозектор: {document.title}",
         "",
         "Цитаты ниже выписаны дословно и оставлены на языке статьи. Английский текст не переводится.",
         "Колонка «Без ссылок» повторяет ту же фразу без маркеров `[1]`, `[9–11]` и `(Smith et al., 2020)`.",
         "Слова не заменяются. Если таких маркеров не было, в колонке стоит «—».",
         "",
-        "Список литературы, благодарности, финансирование, декларации и подписи к рисункам в разбор не входят.",
+        "Список литературы, благодарности, финансирование, декларации и подписи к рисункам Прозектор не включает.",
         "",
         f"- Источник: {document.source or '—'}",
         f"- Язык цитат: {LANGUAGE_NAME.get(document.language, document.language)}",
         f"- Охват: {document.completeness}",
-        f"- Прочитано предложений: {razbor.sentences_seen}",
+        f"- Прочитано предложений: {prozektor.sentences_seen}",
         "",
     ]
     for bucket in BUCKETS:
@@ -631,7 +631,7 @@ def render_markdown(razbor: Razbor) -> str:
         lines.append("")
         lines.append(BUCKET_LEAD[bucket])
         lines.append("")
-        rows = razbor.by_bucket(bucket)
+        rows = prozektor.by_bucket(bucket)
         if not rows:
             lines.append(BUCKET_EMPTY[bucket])
             lines.append("")
@@ -656,12 +656,12 @@ def render_markdown(razbor: Razbor) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def write_markdown(path, razbor: Razbor) -> None:
+def write_markdown(path, prozektor: Prozektor) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_markdown(razbor), encoding="utf-8")
+    path.write_text(render_markdown(prozektor), encoding="utf-8")
 
 
-def write_quotes_csv(path, razbor: Razbor) -> None:
+def write_quotes_csv(path, prozektor: Prozektor) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
@@ -669,7 +669,7 @@ def write_quotes_csv(path, razbor: Razbor) -> None:
             fieldnames=("bucket", "section", "quote", "without_citations"),
         )
         writer.writeheader()
-        for quote in razbor.quotes:
+        for quote in prozektor.quotes:
             writer.writerow(
                 {
                     "bucket": quote.bucket,

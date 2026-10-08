@@ -16,11 +16,11 @@
 
 ## Литературный обзор
 
-Поиск статей и рабочая библиография живут в каталоге [`literature/`](literature/SEARCH_STRATEGY.md). Ищет их проект [Книжный червь](knizhny-cherv/README.md) по Europe PMC.
+Поиск статей и рабочая библиография живут в каталоге [`literature/`](literature/SEARCH_STRATEGY.md). Ищет их проект [Книжный червь](knizhny-cherv/README.md) по Europe PMC. Текст отобранной статьи разбирает Прозектор.
 
 ```bash
 python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
-python3 knizhny-cherv/bookworm.py razbor article.xml --out literature/ivm/razbor/article.md
+python3 knizhny-cherv/bookworm.py prozektor article.xml --out literature/ivm/prozektor/article.md
 ```
 
 ## Пересборка DOCX

@@ -1,4 +1,4 @@
-"""Разбор статьи: цитаты остаются дословными и расходятся по таблицам."""
+"""Прозектор: цитаты остаются дословными и расходятся по таблицам."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ from pathlib import Path
 
 from knizhny_cherv.cli import main
 from knizhny_cherv.fulltext import FullTextError, fetch_fulltext_xml
-from knizhny_cherv.razbor import (
+from knizhny_cherv.prozektor import (
     classify,
     parse_article,
-    razbor_of,
+    prozektor_of,
     render_markdown,
     split_sentences,
     strip_citations,
@@ -110,8 +110,8 @@ RUSSIAN = """
 """
 
 
-def _texts(razbor, bucket: str) -> list[str]:
-    return [quote.text for quote in razbor.by_bucket(bucket)]
+def _texts(prozektor, bucket: str) -> list[str]:
+    return [quote.text for quote in prozektor.by_bucket(bucket)]
 
 
 class SentenceTests(unittest.TestCase):
@@ -136,22 +136,22 @@ class SentenceTests(unittest.TestCase):
 class PlainArticleTests(unittest.TestCase):
     def setUp(self):
         self.document = parse_article(ARTICLE, source="article.txt")
-        self.razbor = razbor_of(self.document)
+        self.prozektor = prozektor_of(self.document)
 
     def test_quotes_are_verbatim_english(self):
         self.assertEqual(self.document.language, "en")
         self.assertEqual(self.document.completeness, "полный текст")
         self.assertIn("Unstimulated IVM", self.document.title)
-        for quote in self.razbor.quotes:
+        for quote in self.prozektor.quotes:
             self.assertIn(quote.text, self.document.full_text)
             self.assertNotIn("Some paper about oocytes", quote.text)
 
     def test_buckets_follow_what_was_done(self):
-        experiment = _texts(self.razbor, "experiment")
-        control = _texts(self.razbor, "control")
-        literature = _texts(self.razbor, "literature")
-        results = _texts(self.razbor, "results")
-        protocol = _texts(self.razbor, "protocol")
+        experiment = _texts(self.prozektor, "experiment")
+        control = _texts(self.prozektor, "control")
+        literature = _texts(self.prozektor, "literature")
+        results = _texts(self.prozektor, "results")
+        protocol = _texts(self.prozektor, "protocol")
 
         self.assertTrue(any("We aimed to compare" in item for item in experiment))
         self.assertTrue(any("retrospective cohort study" in item for item in experiment))
@@ -179,16 +179,17 @@ class PlainArticleTests(unittest.TestCase):
         self.assertTrue(any("fertilized via ICSI" in item for item in protocol))
 
     def test_plain_column_drops_markers_only(self):
-        cited = next(quote for quote in self.razbor.by_bucket("literature") if "has been shown" in quote.text)
+        cited = next(quote for quote in self.prozektor.by_bucket("literature") if "has been shown" in quote.text)
         self.assertIn("(Smith et al., 2020)", cited.text)
         self.assertNotIn("Smith", cited.plain)
         self.assertIn("has been shown to reduce OHSS risk", cited.plain)
-        numbered = next(quote for quote in self.razbor.by_bucket("literature") if "[2]" in quote.text)
+        numbered = next(quote for quote in self.prozektor.by_bucket("literature") if "[2]" in quote.text)
         self.assertIn("30%", numbered.plain)
         self.assertNotIn("[2]", numbered.plain)
 
     def test_markdown_tables_keep_original_wording(self):
-        markdown = render_markdown(self.razbor)
+        markdown = render_markdown(self.prozektor)
+        self.assertIn("# Прозектор:", markdown)
         self.assertIn("## Структура эксперимента", markdown)
         self.assertIn("## Контроль", markdown)
         self.assertIn("## Данные литобзора", markdown)
@@ -244,33 +245,33 @@ class JatsTests(unittest.TestCase):
     def test_sections_and_reference_list(self):
         document = parse_article(JATS, source="PMC1")
         self.assertEqual(document.title, "IVM cohort")
-        razbor = razbor_of(document)
+        prozektor = prozektor_of(document)
         self.assertNotIn("Some paper about oocytes", document.full_text)
-        self.assertTrue(any("control group was established" in item for item in _texts(razbor, "control")))
-        self.assertTrue(any("0.075 IU/mL" in item for item in _texts(razbor, "protocol")))
-        self.assertTrue(any("has been shown" in item for item in _texts(razbor, "literature")))
-        self.assertTrue(any("22.0%" in item for item in _texts(razbor, "results")))
-        self.assertTrue(any("retrospective cohort" in item for item in _texts(razbor, "experiment")))
-        self.assertTrue(any("No cases of OHSS" in item for item in _texts(razbor, "results")))
+        self.assertTrue(any("control group was established" in item for item in _texts(prozektor, "control")))
+        self.assertTrue(any("0.075 IU/mL" in item for item in _texts(prozektor, "protocol")))
+        self.assertTrue(any("has been shown" in item for item in _texts(prozektor, "literature")))
+        self.assertTrue(any("22.0%" in item for item in _texts(prozektor, "results")))
+        self.assertTrue(any("retrospective cohort" in item for item in _texts(prozektor, "experiment")))
+        self.assertTrue(any("No cases of OHSS" in item for item in _texts(prozektor, "results")))
 
 
 class RussianTests(unittest.TestCase):
     def test_russian_article_is_not_translated(self):
         document = parse_article(RUSSIAN, source="ru.txt")
         self.assertEqual(document.language, "ru")
-        razbor = razbor_of(document)
-        literature = _texts(razbor, "literature")
-        experiment = _texts(razbor, "experiment")
-        control = _texts(razbor, "control")
-        protocol = _texts(razbor, "protocol")
-        results = _texts(razbor, "results")
+        prozektor = prozektor_of(document)
+        literature = _texts(prozektor, "literature")
+        experiment = _texts(prozektor, "experiment")
+        control = _texts(prozektor, "control")
+        protocol = _texts(prozektor, "protocol")
+        results = _texts(prozektor, "results")
         self.assertTrue(any("Ранее было показано" in item for item in literature))
         self.assertTrue(any("В настоящем исследовании" in item for item in experiment))
         self.assertTrue(any("Контрольная группа" in item for item in control))
         self.assertTrue(any("культивировали" in item for item in protocol))
         self.assertTrue(any("60%" in item for item in results))
         self.assertNotIn("Статья про ооциты", document.full_text)
-        cited = next(quote for quote in razbor.by_bucket("literature") if "[1]" in quote.text)
+        cited = next(quote for quote in prozektor.by_bucket("literature") if "[1]" in quote.text)
         self.assertNotIn("[1]", cited.plain)
         self.assertIn("Ранее было показано", cited.plain)
 
@@ -319,14 +320,14 @@ class _Body:
 
 
 class CliTests(unittest.TestCase):
-    def test_razbor_writes_markdown_and_csv(self):
+    def test_prozektor_writes_markdown_and_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "article.txt"
             source.write_text(ARTICLE, encoding="utf-8")
-            out = root / "razbor.md"
-            csv_path = root / "razbor.csv"
-            code = main(["razbor", str(source), "--out", str(out), "--csv", str(csv_path)])
+            out = root / "prozektor.md"
+            csv_path = root / "prozektor.csv"
+            code = main(["prozektor", str(source), "--out", str(out), "--csv", str(csv_path)])
             self.assertEqual(code, 0)
             text = out.read_text(encoding="utf-8")
             self.assertIn("19-gauge", text)
@@ -335,9 +336,9 @@ class CliTests(unittest.TestCase):
             self.assertIn("0.075 IU/mL", table)
             self.assertNotIn("Some paper about oocytes", text)
 
-    def test_razbor_requires_one_source(self):
+    def test_prozektor_requires_one_source(self):
         with tempfile.TemporaryDirectory() as tmp:
-            code = main(["razbor", "--out", str(Path(tmp) / "out.md")])
+            code = main(["prozektor", "--out", str(Path(tmp) / "out.md")])
         self.assertEqual(code, 1)
 
 

@@ -1,6 +1,6 @@
 # Книжный червь
 
-Поиск и выгрузка научной литературы для обзора **in vitro maturation** в этом репозитории. Источник — [Europe PMC](https://europepmc.org/) (PubMed, PMC и смежные записи). Сторонние пакеты не нужны: достаточно Python 3.11+.
+Поиск и выгрузка научной литературы для обзора **in vitro maturation** в этом репозитории. Источник — [Europe PMC](https://europepmc.org/) (PubMed, PMC и смежные записи). Текст уже найденной статьи разбирает **Прозектор**. Сторонние пакеты не нужны: достаточно Python 3.11+.
 
 Проект лежит на ветке литературного обзора и закрывает пять вопросов, из которых собран краткий обзор IVM: биология, показания, протоколы, эффективность, безопасность.
 
@@ -29,16 +29,16 @@ python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 
 Сортировка по умолчанию — релевантность Europe PMC. Другие варианты: `--sort cited` и `--sort date`.
 
-## Разобрать статью
+## Прозектор
 
-Поиск отдаёт аннотации и ссылки. Команда `razbor` разбирает уже скачанный текст: что сделали авторы, чем был контроль, какие положения взяты из чужих работ, какие получились результаты. Если в статье есть протокол, его шаги вынимаются из общего текста.
+Поиск отдаёт аннотации и ссылки. Прозектор разбирает уже скачанный текст: что сделали авторы, чем был контроль, какие положения взяты из чужих работ, какие получились результаты. Если в статье есть протокол, его шаги вынимаются из общего текста.
 
 Цитаты дословные и остаются на языке статьи. Английский не переводится. Колонка «Без ссылок» только снимает маркеры `[1]`, `[9–11]` и `(Smith et al., 2020)`. Список литературы в конце статьи в таблицы не попадает.
 
 ```bash
-python3 knizhny-cherv/bookworm.py razbor article.xml --out literature/ivm/razbor/article.md
-python3 knizhny-cherv/bookworm.py razbor article.txt --out literature/ivm/razbor/article.md --csv literature/ivm/razbor/article.csv
-python3 knizhny-cherv/bookworm.py razbor --pmcid PMC13200467 --out literature/ivm/razbor/article.md
+python3 knizhny-cherv/bookworm.py prozektor article.xml --out literature/ivm/prozektor/article.md
+python3 knizhny-cherv/bookworm.py prozektor article.txt --out literature/ivm/prozektor/article.md --csv literature/ivm/prozektor/article.csv
+python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC13200467 --out literature/ivm/prozektor/article.md
 ```
 
 Файл может быть обычным текстом с заголовками разделов или JATS XML из Europe PMC. Полный текст скачивается только если он есть в PMC. Иначе сохраните статью в файл и передайте его первым аргументом.

@@ -71,7 +71,7 @@ def _download(pmcid: str, opener: Any | None) -> str:
         detail = exc.read().decode("utf-8", errors="replace")[:200]
         if exc.code == 404:
             raise FullTextError(
-                f"полного текста {pmcid} нет в Europe PMC. Сохраните статью в файл и передайте его в razbor."
+                f"полного текста {pmcid} нет в Europe PMC. Сохраните статью в файл и передайте его Прозектору."
             ) from exc
         raise FullTextError(f"Europe PMC HTTP {exc.code}: {detail}") from exc
     except urllib.error.URLError as exc:
