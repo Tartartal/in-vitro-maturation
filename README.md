@@ -16,7 +16,7 @@
 
 ## Литературный обзор
 
-Поиск статей и рабочая библиография живут в каталоге [`literature/`](literature/SEARCH_STRATEGY.md). Ищет их проект [Книжный червь](knizhny-cherv/README.md) по Europe PMC.
+Поиск статей и рабочая библиография живут в каталоге [`literature/`](literature/SEARCH_STRATEGY.md). Ищет их проект [Книжный червь](knizhny-cherv/README.md) по Europe PMC. Разбор уникальных записей этой выгрузки — в [`literature/REVIEW.md`](literature/REVIEW.md).
 
 ```bash
 python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
