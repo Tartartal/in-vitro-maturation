@@ -69,6 +69,18 @@ def search(
     return papers
 
 
+def first_raw(query: str, *, opener: Any | None = None) -> dict[str, Any] | None:
+    """Первая запись Europe PMC с полными полями, включая ссылки на текст."""
+    fetch = opener or urllib.request.urlopen
+    payload = _get_page(fetch, query, 1, "*", None)
+    result_list = (payload.get("resultList") or {}).get("result") or []
+    if isinstance(result_list, dict):
+        result_list = [result_list]
+    if not result_list or not isinstance(result_list[0], dict):
+        return None
+    return result_list[0]
+
+
 def paper_from_raw(raw: dict[str, Any], *, query_id: str = "") -> Paper:
     doi = str(raw.get("doi") or "").strip()
     pmid = str(raw.get("pmid") or "").strip()

@@ -29,6 +29,19 @@ python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 
 Сортировка по умолчанию — релевантность Europe PMC. Другие варианты: `--sort cited` и `--sort date`.
 
+## Полные тексты в отдельном репозитории
+
+Обзор остаётся в этом репозитории. Открытые `.pdf`, `.docx` и `.djvu` складываются в другой каталог, который должен быть отдельным git-репозиторием. Внутри него статья попадает в папку своей темы: `biology`, `indications`, `protocols`, `efficacy`, `safety`. Если тем несколько, файл хранится в первой, а в `CATALOG.md` указан у каждой.
+
+```bash
+python3 knizhny-cherv/bookworm.py fetch \
+  --out-dir literature/ivm \
+  --library ../ivm-articles \
+  --library-url https://github.com/Tartartal/ivm-articles
+```
+
+Повторный запуск не скачивает уже сохранённый файл. В `literature/ivm/bibliography.md` у каждой проверенной статьи есть либо путь к файлу, либо «скачивание невозможно». Закрытые тексты Книжный червь не обходит.
+
 ## Свой запрос
 
 Синтаксис — [Europe PMC](https://europepmc.org/searchsyntax).

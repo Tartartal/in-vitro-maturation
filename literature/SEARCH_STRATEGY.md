@@ -20,7 +20,20 @@
 python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 ```
 
-Текущая выгрузка в `literature/ivm/` — стартовый набор для скрининга, а не окончательный корпус. Повторный запуск перезаписывает эти файлы.
+Текущая выгрузка в `literature/ivm/` — стартовый набор для скрининга, а не окончательный корпус. Повторный запуск перезаписывает эти файлы и заново подставляет пометки о файлах из `literature/ivm/files.json`, если он уже есть.
+
+## Полные тексты
+
+Файлы статей лежат не здесь, а в отдельном репозитории `ivm-articles`. Папки в нём совпадают с вопросами обзора: `biology`, `indications`, `protocols`, `efficacy`, `safety`. Принимаются `.pdf`, `.docx` и `.djvu`.
+
+```bash
+python3 knizhny-cherv/bookworm.py fetch \
+  --out-dir literature/ivm \
+  --library ../ivm-articles \
+  --library-url https://github.com/Tartartal/ivm-articles
+```
+
+Книжный червь берёт только открытые копии (Europe PMC и Unpaywall). Если ссылка не отдаёт файл нужного формата, в `bibliography.md` у записи появляется строка «скачивание невозможно». Удачная загрузка оставляет путь к файлу в репозитории статей.
 
 ## Скрининг
 
