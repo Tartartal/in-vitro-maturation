@@ -1,7 +1,7 @@
 """Прозектор: разбор статьи в таблицы дословных цитат.
 
 Цитата — предложение из текста статьи без пересказа и без перевода.
-Колонка «без ссылок» снимает только маркеры цитирования.
+Выход Прозектора — файл .docx. Столбец «Ссылки» — пункты списка литературы самой статьи.
 """
 
 from __future__ import annotations
@@ -313,9 +313,54 @@ class Prozektor:
         return [quote for quote in self.quotes if quote.bucket == bucket]
 
 
+def normalize_superscript_citations(text: str) -> str:
+    """Надстрочные номера Cell превратить в [1–4], не трогая десятичные дроби и DOI.
+
+    «burdens.1–4 Despite» становится «burdens [1–4]. Despite».
+    «lagged,5,6 hindering» становится «lagged [5,6] hindering».
+    """
+    nums = r"\d{1,3}(?:[\u2013\-]\d{1,3})?(?:,\d{1,3}(?:[\u2013\-]\d{1,3})?)*"
+
+    def citation(raw: str) -> str | None:
+        parts = re.split(r"[,|\u2013\-]", raw)
+        if any(not part or (len(part) > 1 and part.startswith("0")) for part in parts):
+            return None
+        return raw
+
+    def sentence_end(match: re.Match[str]) -> str:
+        raw = citation(match.group(2))
+        if raw is None:
+            return match.group(0)
+        return f" [{raw}]{match.group(1)} "
+
+    def inline(match: re.Match[str]) -> str:
+        raw = citation(match.group(1))
+        if raw is None:
+            return match.group(0)
+        return f" [{raw}]"
+
+    text = re.sub(
+        rf"(?<=[A-Za-z])([.!?])({nums})(?!\d)(?=\s+[A-ZА-ЯЁ]|$)",
+        sentence_end,
+        text,
+    )
+    text = re.sub(
+        rf"(?<=[A-Za-z]),({nums})(?!\d)(?=\s)",
+        inline,
+        text,
+    )
+    text = re.sub(
+        rf"(?<=[a-z])\.({nums})(?!\d)(?=\s+[a-z])",
+        inline,
+        text,
+    )
+    return " ".join(text.split())
+
+
 def split_sentences(text: str) -> list[str]:
     """Разбить абзац на предложения, не режа десятичные дроби и Fig. / et al."""
-    raw = " ".join(text.replace("\xa0", " ").split())
+    raw = normalize_superscript_citations(text)
+    raw = " ".join(raw.replace("\xa0", " ").split())
     if not raw:
         return []
     protected = re.sub(r"(?<=\d)\.(?=\d)", _DOT, raw)
@@ -711,15 +756,23 @@ def _href_from_text(text: str) -> str:
 
 
 def _references_from_lines(lines: list[str]) -> tuple[Reference, ...]:
+    """Пункты 1. 2. 3. по порядку. «Part 1.» и номер страницы новым пунктом не становятся."""
+    text = " ".join(" ".join(line.split()) for line in lines if line.strip())
     refs: list[Reference] = []
-    for line in lines:
-        pieces = re.split(r"(?:(?<=\s)|^)(?=\d+\.\s)", line)
-        for piece in pieces:
-            match = re.match(r"^(\d+)\.?\s+(.*)$", piece.strip())
-            if not match:
-                continue
-            label, body = match.group(1), match.group(2).strip()
-            refs.append(Reference(label=label, text=body, href=_href_from_text(body)))
+    expected = 1
+    starts: list[re.Match[str]] = []
+    for match in re.finditer(r"(?:(?<=\s)|^)(\d{1,3})\.\s+", text):
+        if int(match.group(1)) != expected:
+            continue
+        before = text[max(0, match.start() - 6):match.start()].lower()
+        if before.endswith("part ") or before.endswith("part"):
+            continue
+        starts.append(match)
+        expected += 1
+    for index, match in enumerate(starts):
+        end = starts[index + 1].start() if index + 1 < len(starts) else len(text)
+        body = text[match.end():end].strip()
+        refs.append(Reference(label=match.group(1), text=body, href=_href_from_text(body)))
     return tuple(refs)
 
 
@@ -790,8 +843,15 @@ def parse_article(text: str, *, source: str = "") -> Document:
     return parse_plain(text, source=source)
 
 
+_META_LINE = re.compile(r"(?i)^(authors|авторы|year|год|doi|source|источник)\s*:\s*(.+)$")
+
+
 def parse_plain(text: str, *, source: str = "") -> Document:
     title = ""
+    authors = ""
+    year = ""
+    doi = ""
+    source_meta = ""
     blocks: list[Block] = []
     bibliography: list[str] = []
     top = ""
@@ -845,6 +905,19 @@ def parse_plain(text: str, *, source: str = "") -> Document:
         if not line:
             flush()
             continue
+        meta = _META_LINE.match(line)
+        if meta and not blocks and not buffer:
+            key = meta.group(1).lower()
+            value = meta.group(2).strip()
+            if key in {"authors", "авторы"}:
+                authors = value
+            elif key in {"year", "год"}:
+                year = value
+            elif key == "doi":
+                doi = value.removeprefix("https://doi.org/").removeprefix("http://dx.doi.org/")
+            elif key in {"source", "источник"}:
+                source_meta = value
+            continue
         inline = _INLINE_LABEL.match(line)
         if inline:
             flush()
@@ -867,7 +940,10 @@ def parse_plain(text: str, *, source: str = "") -> Document:
         language=language_of(full),
         blocks=blocks,
         full_text=full,
-        source=source,
+        source=source_meta or source,
+        authors=authors,
+        year=year,
+        doi=doi,
         references=_references_from_lines(bibliography),
     )
 

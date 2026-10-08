@@ -50,9 +50,14 @@ def main(argv: list[str] | None = None) -> int:
     prozektor_parser.add_argument("file", nargs="?", type=Path, help="файл статьи: .txt, .md или JATS XML")
     prozektor_parser.add_argument("--pmcid", help="скачать полный текст из Europe PMC")
     prozektor_parser.add_argument("--pmid", help="найти PMCID по PMID и скачать полный текст")
-    prozektor_parser.add_argument("--out", type=Path, default=None, help="Markdown с таблицами")
-    prozektor_parser.add_argument("--csv", type=Path, default=None, help="те же цитаты в CSV")
-    prozektor_parser.add_argument("--docx", type=Path, default=None, help="те же таблицы в .docx")
+    prozektor_parser.add_argument("--out", type=Path, default=None, help="дополнительно: те же таблицы в Markdown")
+    prozektor_parser.add_argument("--csv", type=Path, default=None, help="дополнительно: те же цитаты в CSV")
+    prozektor_parser.add_argument(
+        "--docx",
+        type=Path,
+        default=None,
+        help="карточка Word; если путь не задан, пишется рядом с файлом как <имя>_prozektor.docx",
+    )
 
     args = parser.parse_args(argv)
     try:
@@ -99,24 +104,36 @@ def _cmd_presets(args: argparse.Namespace) -> int:
     return 0
 
 
+def _docx_path(args: argparse.Namespace) -> Path:
+    """Карточка Прозектора всегда .docx. Путь можно задать, но формат — нет."""
+    if args.docx:
+        path = args.docx
+    elif args.file:
+        path = args.file.with_name(f"{args.file.stem}_prozektor.docx")
+    else:
+        stem = args.pmcid or f"PMID{args.pmid}"
+        path = Path("literature/ivm/prozektor") / f"{stem}.docx"
+    if path.suffix.lower() != ".docx":
+        path = path.with_suffix(".docx")
+    return path
+
+
 def _cmd_prozektor(args: argparse.Namespace) -> int:
     sources = [bool(args.file), bool(args.pmcid), bool(args.pmid)]
     if sum(sources) != 1:
         raise ValueError("нужен один источник: файл, --pmcid или --pmid")
-    if not args.out and not args.csv and not args.docx:
-        raise ValueError("нужен --out, --csv или --docx")
     if args.file:
         text = args.file.read_text(encoding="utf-8")
         source = str(args.file)
     else:
         text, source = fetch_fulltext_xml(pmcid=args.pmcid or "", pmid=args.pmid or "")
     prozektor = prozektor_of(parse_article(text, source=source))
+    docx = _docx_path(args)
     if args.out:
         write_markdown(args.out, prozektor)
     if args.csv:
         write_quotes_csv(args.csv, prozektor)
-    if args.docx:
-        write_docx(args.docx, prozektor)
+    write_docx(docx, prozektor)
     counts = {bucket: len(prozektor.by_bucket(bucket)) for bucket in (
         "experiment",
         "control",
@@ -130,8 +147,7 @@ def _cmd_prozektor(args: argparse.Namespace) -> int:
     )
     if args.out:
         print(f"прозектор → {args.out}")
-    if args.docx:
-        print(f"прозектор → {args.docx}")
+    print(f"прозектор → {docx}")
     return 0
 
 
