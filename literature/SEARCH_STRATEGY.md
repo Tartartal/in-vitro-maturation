@@ -34,6 +34,7 @@ python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 
 ```bash
 python3 knizhny-cherv/bookworm.py prozektor path/to/article.xml --out literature/ivm/prozektor/article.md
+python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC10664544 --docx literature/ivm/prozektor/Das_Son_2023_IVM.docx
 ```
 
 Цитаты не пересказываются и не переводятся. Маркеры ссылок снимаются только в колонке «Без ссылок». Хвост «References» Прозектор не включает.

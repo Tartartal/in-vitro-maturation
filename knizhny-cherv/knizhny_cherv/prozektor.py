@@ -272,11 +272,14 @@ class Document:
     blocks: list[Block]
     full_text: str
     source: str = ""
+    authors: str = ""
+    year: str = ""
+    doi: str = ""
 
     @property
     def completeness(self) -> str:
         zones = {block.zone for block in self.blocks}
-        if "methods" in zones and "results" in zones:
+        if "methods" in zones and zones & {"results", "discussion"}:
             return "полный текст"
         return "фрагмент или аннотация"
 
@@ -574,6 +577,50 @@ def parse_plain(text: str, *, source: str = "") -> Document:
     return Document(title=title or "Без названия", language=language_of(full), blocks=blocks, full_text=full, source=source)
 
 
+def _article_meta(article: ET.Element) -> tuple[str, str, str]:
+    names: list[str] = []
+    for el in article.iter():
+        if _local(el.tag) != "contrib":
+            continue
+        if (el.get("contrib-type") or "author") != "author":
+            continue
+        surname = ""
+        given = ""
+        collab = ""
+        for child in el.iter():
+            local = _local(child.tag)
+            if local == "surname" and not surname:
+                surname = _clean(_element_text(child))
+            elif local == "given-names" and not given:
+                given = _clean(_element_text(child))
+            elif local == "collab" and not collab:
+                collab = _clean(_element_text(child))
+        if surname:
+            names.append(f"{surname} {given}".strip())
+        elif collab:
+            names.append(collab)
+        if len(names) >= 20:
+            break
+    year = ""
+    for el in article.iter():
+        if _local(el.tag) != "pub-date":
+            continue
+        for child in list(el):
+            if _local(child.tag) == "year" and (child.text or "").strip().isdigit():
+                year = child.text.strip()
+                break
+        if year and (el.get("pub-type") or "") in {"epub", "ppub", "collection"}:
+            break
+    doi = ""
+    for el in article.iter():
+        if _local(el.tag) != "article-id":
+            continue
+        if (el.get("pub-id-type") or "").lower() == "doi" and (el.text or "").strip():
+            doi = el.text.strip()
+            break
+    return ", ".join(names), year, doi
+
+
 def parse_jats(xml: str, *, source: str = "") -> Document:
     try:
         root = ET.fromstring(xml)
@@ -585,6 +632,7 @@ def parse_jats(xml: str, *, source: str = "") -> Document:
         if _local(el.tag) == "article-title":
             title = _clean(_element_text(el))
             break
+    authors, year, doi = _article_meta(article)
     blocks: list[Block] = []
     for el in list(article):
         if _local(el.tag) == "front":
@@ -606,6 +654,9 @@ def parse_jats(xml: str, *, source: str = "") -> Document:
         blocks=blocks,
         full_text=full,
         source=source,
+        authors=authors,
+        year=year,
+        doi=doi,
     )
 
 
@@ -620,6 +671,9 @@ def render_markdown(prozektor: Prozektor) -> str:
         "",
         "Список литературы, благодарности, финансирование, декларации и подписи к рисункам Прозектор не включает.",
         "",
+        *( [f"- Авторы: {document.authors}"] if document.authors else [] ),
+        *( [f"- Год: {document.year}"] if document.year else [] ),
+        *( [f"- DOI: {document.doi}"] if document.doi else [] ),
         f"- Источник: {document.source or '—'}",
         f"- Язык цитат: {LANGUAGE_NAME.get(document.language, document.language)}",
         f"- Охват: {document.completeness}",

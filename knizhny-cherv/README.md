@@ -38,8 +38,10 @@ python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 ```bash
 python3 knizhny-cherv/bookworm.py prozektor article.xml --out literature/ivm/prozektor/article.md
 python3 knizhny-cherv/bookworm.py prozektor article.txt --out literature/ivm/prozektor/article.md --csv literature/ivm/prozektor/article.csv
-python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC13200467 --out literature/ivm/prozektor/article.md
+python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC13200467 --docx literature/ivm/prozektor/article.docx
 ```
+
+`--docx` кладёт те же таблицы в файл Word. Достаточно одного из `--out`, `--csv`, `--docx`.
 
 Файл может быть обычным текстом с заголовками разделов или JATS XML из Europe PMC. Полный текст скачивается только если он есть в PMC. Иначе сохраните статью в файл и передайте его первым аргументом.
 

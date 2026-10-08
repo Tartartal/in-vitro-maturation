@@ -319,6 +319,52 @@ class _Body:
         return False
 
 
+class DocxTests(unittest.TestCase):
+    def test_docx_keeps_the_original_sentence(self):
+        import zipfile
+
+        from knizhny_cherv.docx_card import write_docx
+
+        prozektor = prozektor_of(parse_article(ARTICLE, source="article.txt"))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "card.docx"
+            write_docx(path, prozektor)
+            with zipfile.ZipFile(path) as archive:
+                xml = archive.read("word/document.xml").decode("utf-8")
+        self.assertIn("Прозектор: Unstimulated IVM and conventional IVF", xml)
+        self.assertIn("19-gauge needle at 80 mmHg", xml)
+        self.assertIn("Структура эксперимента", xml)
+        self.assertIn("<w:tbl>", xml)
+        self.assertNotIn("Some paper about oocytes", xml)
+
+    def test_jats_authors_year_and_doi(self):
+        xml = """<?xml version="1.0"?>
+<article>
+  <front>
+    <article-meta>
+      <article-id pub-id-type="doi">10.1186/s12958-023-01162-x</article-id>
+      <title-group><article-title>IVM still relevant</article-title></title-group>
+      <contrib-group>
+        <contrib contrib-type="author"><name><surname>Das</surname><given-names>M</given-names></name></contrib>
+        <contrib contrib-type="author"><name><surname>Son</surname><given-names>WY</given-names></name></contrib>
+        <contrib contrib-type="editor"><name><surname>Editor</surname><given-names>A</given-names></name></contrib>
+      </contrib-group>
+      <pub-date pub-type="epub"><year>2023</year></pub-date>
+      <abstract><p>IVM has been shown to help women with PCOS (Smith et al., 2020).</p></abstract>
+    </article-meta>
+  </front>
+  <body><sec><title>Results</title><p>The live birth rate was 22.0% (P &lt; 0.001).</p></sec></body>
+</article>
+"""
+        document = parse_article(xml, source="PMC10664544")
+        self.assertEqual(document.authors, "Das M, Son WY")
+        self.assertEqual(document.year, "2023")
+        self.assertEqual(document.doi, "10.1186/s12958-023-01162-x")
+        markdown = render_markdown(prozektor_of(document))
+        self.assertIn("Авторы: Das M, Son WY", markdown)
+        self.assertIn("DOI: 10.1186/s12958-023-01162-x", markdown)
+
+
 class CliTests(unittest.TestCase):
     def test_prozektor_writes_markdown_and_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -335,6 +381,20 @@ class CliTests(unittest.TestCase):
             self.assertIn("protocol", table)
             self.assertIn("0.075 IU/mL", table)
             self.assertNotIn("Some paper about oocytes", text)
+
+    def test_prozektor_writes_docx_without_markdown(self):
+        import zipfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "article.txt"
+            source.write_text(ARTICLE, encoding="utf-8")
+            docx = root / "card.docx"
+            code = main(["prozektor", str(source), "--docx", str(docx)])
+            self.assertEqual(code, 0)
+            with zipfile.ZipFile(docx) as archive:
+                xml = archive.read("word/document.xml").decode("utf-8")
+            self.assertIn("0.075 IU/mL", xml)
 
     def test_prozektor_requires_one_source(self):
         with tempfile.TemporaryDirectory() as tmp:
