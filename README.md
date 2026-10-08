@@ -20,11 +20,15 @@
 
 ```bash
 python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
-python3 knizhny-cherv/bookworm.py prozektor article.xml --out literature/ivm/prozektor/article.md
+python3 knizhny-cherv/bookworm.py prozektor article.xml --docx literature/ivm/prozektor/article.docx
 python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC10664544 --docx literature/ivm/prozektor/Das_Son_2023_IVM.docx
 ```
 
+Выход Прозектора всегда `.docx`.
+
 Разбор Das M, Son WY, 2023: [`literature/ivm/prozektor/Das_Son_2023_IVM.docx`](literature/ivm/prozektor/Das_Son_2023_IVM.docx).
+
+Разбор Paulsen et al., 2026, hiPSC-OSC: [`literature/ivm/prozektor/Paulsen_2026_hiPSC_OSC.docx`](literature/ivm/prozektor/Paulsen_2026_hiPSC_OSC.docx).
 
 ## Пересборка DOCX
 

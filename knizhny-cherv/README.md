@@ -36,12 +36,12 @@ python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 Цитаты дословные и остаются на языке статьи. Английский не переводится. Столбец «Ссылки» — это пункты списка литературы самой статьи, на которые опирается фраза, а не вторая копия цитаты. Протокол идёт нумерованным списком: сначала как это делают, затем шаги.
 
 ```bash
-python3 knizhny-cherv/bookworm.py prozektor article.xml --out literature/ivm/prozektor/article.md
+python3 knizhny-cherv/bookworm.py prozektor article.xml --docx literature/ivm/prozektor/article.docx
 python3 knizhny-cherv/bookworm.py prozektor article.txt --out literature/ivm/prozektor/article.md --csv literature/ivm/prozektor/article.csv
-python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC13200467 --docx literature/ivm/prozektor/article.docx
+python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC13200467
 ```
 
-`--docx` кладёт ту же карточку в файл Word. Достаточно одного из `--out`, `--csv`, `--docx`.
+Выход Прозектора всегда файл `.docx`. Если `--docx` не указан, карточка пишется рядом с файлом статьи как `<имя>_prozektor.docx`, а для PMCID — в `literature/ivm/prozektor/<PMCID>.docx`. `--out` и `--csv` только добавляют копии и не заменяют Word.
 
 Файл может быть обычным текстом с заголовками разделов или JATS XML из Europe PMC. Полный текст скачивается только если он есть в PMC. Иначе сохраните статью в файл и передайте его первым аргументом.
 

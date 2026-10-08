@@ -33,8 +33,8 @@ python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 Когда статья уже отобрана, Прозектор раскладывает её текст: структура эксперимента, контроль, данные литобзора и результаты — таблицами, протоколы — нумерованными списками.
 
 ```bash
-python3 knizhny-cherv/bookworm.py prozektor path/to/article.xml --out literature/ivm/prozektor/article.md
+python3 knizhny-cherv/bookworm.py prozektor path/to/article.xml --docx literature/ivm/prozektor/article.docx
 python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC10664544 --docx literature/ivm/prozektor/Das_Son_2023_IVM.docx
 ```
 
-Цитаты не переводятся. В столбце «Ссылки» стоят пункты списка литературы этой статьи. Перед каждым протоколом — как его делают, дальше нумерованные дословные шаги.
+Цитаты не переводятся. В столбце «Ссылки» стоят пункты списка литературы этой статьи. Перед каждым протоколом — как его делают, дальше нумерованные дословные шаги. Карточка всегда сохраняется файлом `.docx`.

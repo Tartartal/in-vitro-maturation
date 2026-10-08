@@ -14,6 +14,7 @@ from knizhny_cherv.fulltext import FullTextError, fetch_fulltext_xml
 from knizhny_cherv.prozektor import (
     classify,
     format_reference,
+    normalize_superscript_citations,
     parse_article,
     prozektor_of,
     render_markdown,
@@ -408,6 +409,8 @@ class CliTests(unittest.TestCase):
             self.assertIn("0.075 IU/mL", table)
             self.assertIn("1. Smith A. Some paper about oocytes. 2020.", text)
             self.assertNotIn("Без ссылок", text)
+            sidecar = source.with_name("article_prozektor.docx")
+            self.assertTrue(sidecar.is_file())
 
     def test_prozektor_writes_docx_without_markdown(self):
         import zipfile
@@ -427,6 +430,74 @@ class CliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             code = main(["prozektor", "--out", str(Path(tmp) / "out.md")])
         self.assertEqual(code, 1)
+
+    def test_prozektor_always_writes_docx(self):
+        import zipfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "article.txt"
+            source.write_text(ARTICLE, encoding="utf-8")
+            code = main(["prozektor", str(source)])
+            self.assertEqual(code, 0)
+            docx = source.with_name("article_prozektor.docx")
+            with zipfile.ZipFile(docx) as archive:
+                self.assertIn("word/document.xml", archive.namelist())
+
+
+class SuperscriptCitationTests(unittest.TestCase):
+    def test_cell_superscripts_split_and_resolve(self):
+        self.assertEqual(
+            normalize_superscript_citations("economic burdens.1–4 Despite the lag,5,6 innovation."),
+            "economic burdens [1–4]. Despite the lag [5,6] innovation.",
+        )
+        self.assertIn("10.1016/j.stem.2025.12.020", normalize_superscript_citations("https://doi.org/10.1016/j.stem.2025.12.020"))
+        self.assertEqual(
+            normalize_superscript_citations("supplemented with 0.075 IU/mL FSH for 30 h."),
+            "supplemented with 0.075 IU/mL FSH for 30 h.",
+        )
+        text = """
+# Development of OSCs
+
+Authors: Paulsen B, Barrachina F
+Year: 2026
+DOI: 10.1016/j.stem.2025.12.020
+
+# Introduction
+
+Reproductive diseases impose substantial burdens.1–4 Despite the prevalence, development has lagged,5,6 hindering innovation.
+
+# References
+
+1. Cox, C.M. (2022). Infertility prevalence. Hum. Reprod. Open 2022, hoac051. https://doi.org/10.1093/hropen/hoac051.
+2. Moradi, Y. (2021). Endometriosis. Indian J. Med. Res. https://doi.org/10.4103/ijmr.IJMR_817_18.
+3. Shrivastava, S. (2023). PCOS. Med. Clin. North Am. https://doi.org/10.1016/j.mcna.2022.10.004.
+4. Ballard, K.D. (2008). Endometriosis symptoms. BJOG. https://doi.org/10.1111/j.1471-0528.2008.01878.x.
+5. Mercuri, N.D. (2022). Need for research. eLife. https://doi.org/10.7554/eLife.75061.
+6. Smith, K. (2023). Funding. Nature. https://doi.org/10.1038/d41586-023-01475-2.
+"""
+        document = parse_article(text, source="PIIS1934590925004540.pdf")
+        self.assertEqual(document.authors, "Paulsen B, Barrachina F")
+        self.assertEqual(document.year, "2026")
+        self.assertEqual(document.doi, "10.1016/j.stem.2025.12.020")
+        card = prozektor_of(document)
+        quotes = card.by_bucket("literature")
+        first = next(quote for quote in quotes if "burdens" in quote.text)
+        self.assertIn("[1–4]", first.text)
+        self.assertEqual([ref.label for ref in first.refs], ["1", "2", "3", "4"])
+        self.assertIn("Cox", first.refs[0].text)
+        self.assertIn("https://doi.org/10.1093/hropen/hoac051", format_reference(first.refs[0]))
+        parsed = parse_article(
+            "# Paper\n\n# References\n\n"
+            "1. Cox, C.M. (2022). Infertility prevalence. https://doi.org/10.1093/hropen/hoac051.\n"
+            "2. Ballard, K.D. (2008). Findings from a national case-control study–Part 1. "
+            "BJOG 115, 1382–1391. https://doi.org/10.1111/j.1471-0528.2008.01878.x.\n",
+            source="x",
+        )
+        self.assertEqual([ref.label for ref in parsed.references], ["1", "2"])
+        self.assertIn("Cox", parsed.references[0].text)
+        self.assertIn("Part 1", parsed.references[1].text)
+        self.assertIn("10.1111/j.1471-0528.2008.01878.x", parsed.references[1].href)
 
 
 if __name__ == "__main__":
