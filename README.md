@@ -4,7 +4,7 @@
 
 ## Документ
 
-- [`In vitro maturation (IVM): краткий обзор.docx`](<./In vitro maturation (IVM): краткий обзор.docx>) — обзор на ≈2 страницы (русский язык)
+- [`In_vitro_maturation_overview.docx`](./In_vitro_maturation_overview.docx) — обзор на ≈2 страницы (русский язык)
 
 ## Содержание обзора
 

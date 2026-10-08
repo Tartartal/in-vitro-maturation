@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-OUT = Path(__file__).resolve().parent / "In vitro maturation (IVM): краткий обзор.docx"
+OUT = Path(__file__).resolve().parent / "In_vitro_maturation_overview.docx"
 
 TITLE = "In vitro maturation (IVM): краткий обзор"
 SUBTITLE = "Краткий обзор темы вспомогательных репродуктивных технологий (≈2 стр.)"
