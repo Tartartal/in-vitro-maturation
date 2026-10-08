@@ -20,6 +20,7 @@
 
 ```bash
 python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
+python3 knizhny-cherv/bookworm.py razbor article.xml --out literature/ivm/razbor/article.md
 ```
 
 ## Пересборка DOCX

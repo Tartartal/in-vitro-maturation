@@ -29,6 +29,22 @@ python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 
 Сортировка по умолчанию — релевантность Europe PMC. Другие варианты: `--sort cited` и `--sort date`.
 
+## Разобрать статью
+
+Поиск отдаёт аннотации и ссылки. Команда `razbor` разбирает уже скачанный текст: что сделали авторы, чем был контроль, какие положения взяты из чужих работ, какие получились результаты. Если в статье есть протокол, его шаги вынимаются из общего текста.
+
+Цитаты дословные и остаются на языке статьи. Английский не переводится. Колонка «Без ссылок» только снимает маркеры `[1]`, `[9–11]` и `(Smith et al., 2020)`. Список литературы в конце статьи в таблицы не попадает.
+
+```bash
+python3 knizhny-cherv/bookworm.py razbor article.xml --out literature/ivm/razbor/article.md
+python3 knizhny-cherv/bookworm.py razbor article.txt --out literature/ivm/razbor/article.md --csv literature/ivm/razbor/article.csv
+python3 knizhny-cherv/bookworm.py razbor --pmcid PMC13200467 --out literature/ivm/razbor/article.md
+```
+
+Файл может быть обычным текстом с заголовками разделов или JATS XML из Europe PMC. Полный текст скачивается только если он есть в PMC. Иначе сохраните статью в файл и передайте его первым аргументом.
+
+Пустая таблица значит, что правило не нашло таких предложений. Это не вывод, что в статье их не было.
+
 ## Свой запрос
 
 Синтаксис — [Europe PMC](https://europepmc.org/searchsyntax).
