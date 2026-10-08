@@ -12,7 +12,7 @@ from knizhny_cherv.export import (
     save_availability,
     write_bibliography,
 )
-from knizhny_cherv.fulltext import acquire
+from knizhny_cherv.fulltext import acquire, public_source_url
 from knizhny_cherv.models import Paper
 from knizhny_cherv.presets import Preset
 from knizhny_cherv.shelf import (
@@ -97,7 +97,7 @@ def fetch_papers(
             "format": result.format,
             "path": "",
             "reason": result.reason,
-            "source_url": result.source_url,
+            "source_url": public_source_url(result.source_url),
         }
         if result.status == "saved" and result.data:
             record["path"] = place_article(library, paper, result.data, result.format, known_topics)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import re
 from pathlib import Path
@@ -176,7 +177,9 @@ def _catalog_line(paper: Paper | None, record: dict, section_id: str) -> str:
     path = str(record.get("path") or "")
     folder = path.split("/", 1)[0]
     if paper:
-        text = f"- {paper.year or '—'}. {paper.authors or '—'}. {paper.title} — `{path}`"
+        authors = html.unescape(paper.authors).strip().rstrip(".") or "—"
+        title = html.unescape(paper.title).strip()
+        text = f"- {paper.year or '—'}. {authors}. {title} — `{path}`"
     else:
         text = f"- `{path}`"
     if section_id and folder and folder != section_id:

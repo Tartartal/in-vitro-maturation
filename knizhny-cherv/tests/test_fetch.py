@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 
 from knizhny_cherv.export import file_note, write_bibliography, write_csv
 from knizhny_cherv.fetch import run_fetch
-from knizhny_cherv.fulltext import europepmc_file_urls, sniff_format, unpaywall_file_urls
+from knizhny_cherv.fulltext import europepmc_file_urls, public_source_url, sniff_format, unpaywall_file_urls
 from knizhny_cherv.models import Paper
 from knizhny_cherv.presets import Preset
 from knizhny_cherv.shelf import article_basename, assert_library_is_separate
@@ -74,6 +74,12 @@ class SniffTests(unittest.TestCase):
         self.assertEqual(sniff_format(_docx()), "docx")
         self.assertIsNone(sniff_format(b"<!DOCTYPE html><html></html>"))
         self.assertIsNone(sniff_format(b"PK\x03\x04not-a-docx"))
+
+    def test_drops_one_time_query(self):
+        cleaned = public_source_url(
+            "https://link.springer.com/content/pdf/10.1/a.pdf?error=cookies_not_supported&code=abc"
+        )
+        self.assertEqual(cleaned, "https://link.springer.com/content/pdf/10.1/a.pdf")
 
     def test_open_urls_only(self):
         raw = {

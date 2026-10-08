@@ -45,6 +45,17 @@ class AcquireResult:
     data: bytes
 
 
+def public_source_url(url: str) -> str:
+    """Убрать из ссылки одноразовые параметры вроде кода сессии."""
+    parsed = urllib.parse.urlparse(url)
+    kept = [
+        (key, value)
+        for key, value in urllib.parse.parse_qsl(parsed.query, keep_blank_values=False)
+        if key.lower() not in {"code", "error", "token", "session"}
+    ]
+    return urllib.parse.urlunparse(parsed._replace(query=urllib.parse.urlencode(kept)))
+
+
 def sniff_format(data: bytes) -> str | None:
     """Узнать pdf, docx или djvu по содержимому, а не по заголовку ответа."""
     sample = data[:16].lstrip()
