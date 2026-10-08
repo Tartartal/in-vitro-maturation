@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 
 from knizhny_cherv.europepmc import SearchError, search
-from knizhny_cherv.export import dedupe, load_availability, write_bibliography, write_csv
+from knizhny_cherv.export import dedupe, load_availability, with_added, write_bibliography, write_csv
 from knizhny_cherv.fetch import run_fetch
 from knizhny_cherv.presets import load_presets
 
@@ -84,7 +84,7 @@ def _cmd_presets(args: argparse.Namespace) -> int:
     bibliography = args.out_dir / "bibliography.md"
     write_bibliography(
         bibliography,
-        grouped,
+        with_added(grouped, args.out_dir),
         generated_on=date.today().isoformat(),
         limit=args.limit,
         availability=load_availability(args.out_dir / "files.json"),

@@ -125,8 +125,26 @@ def file_note(paper: Paper, availability: dict[str, dict] | None) -> str:
     if record.get("status") == "saved" and record.get("path"):
         fmt = str(record.get("format") or "файл")
         return f"- Файл: {fmt}, репозиторий статей, `{record['path']}`"
+    if record.get("status") == "linked" and record.get("source_url"):
+        return f"- Файл: pdf, {record['source_url']}"
     reason = str(record.get("reason") or "нет открытого полного текста")
     return f"- Файл: скачивание невозможно ({reason})"
+
+
+ADDED_PRESET = Preset(
+    id="added",
+    title="Добавлено вручную",
+    question="Статьи, добавленные отдельно от автоматической выгрузки Europe PMC.",
+    query="вручную",
+)
+
+
+def with_added(grouped: list[tuple[Preset, list[Paper]]], out_dir: Path) -> list[tuple[Preset, list[Paper]]]:
+    """Дописать в конец список статьи из added.csv, если файл есть."""
+    path = out_dir / "added.csv"
+    if not path.exists():
+        return grouped
+    return [*grouped, (ADDED_PRESET, read_csv(path))]
 
 
 def read_csv(path: Path) -> list[Paper]:

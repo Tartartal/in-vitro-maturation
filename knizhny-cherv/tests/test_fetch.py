@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from knizhny_cherv.export import file_note, write_bibliography, write_csv
+from knizhny_cherv.export import file_note, with_added, write_bibliography, write_csv
 from knizhny_cherv.fetch import run_fetch
 from knizhny_cherv.fulltext import europepmc_file_urls, public_source_url, sniff_format, unpaywall_file_urls
 from knizhny_cherv.models import Paper
@@ -254,6 +254,23 @@ class FetchTests(unittest.TestCase):
             )
             plain = (out / "plain.md").read_text(encoding="utf-8")
             self.assertNotIn("Файл:", plain)
+
+
+class AddedTests(unittest.TestCase):
+    def test_manual_paper_keeps_pdf_link(self):
+        paper = _paper(doi="10.1016/j.fertnstert.2007.02.011", pmcid="PMC4624406", pmid="18249377")
+        note = file_note(
+            paper,
+            {"doi:10.1016/j.fertnstert.2007.02.011": {"status": "linked", "source_url": "https://pmc.ncbi.nlm.nih.gov/a.pdf"}},
+        )
+        self.assertEqual(note, "- Файл: pdf, https://pmc.ncbi.nlm.nih.gov/a.pdf")
+        preset = Preset("biology", "Биология", "Что?", "IVM")
+        with TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            write_csv(out / "added.csv", [paper])
+            grouped = with_added([(preset, [])], out)
+            self.assertEqual(grouped[-1][0].title, "Добавлено вручную")
+            self.assertEqual(grouped[-1][1][0].doi, paper.doi)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from knizhny_cherv.export import (
     load_availability,
     read_csv,
     save_availability,
+    with_added,
     write_bibliography,
 )
 from knizhny_cherv.fulltext import acquire, public_source_url
@@ -50,6 +51,10 @@ def run_fetch(
         opener=opener,
         pause_s=pause_s,
     )
+    # Записи, которых нет в автоматической выгрузке (добавленные вручную), не затирать.
+    retained = {key: value for key, value in previous.items() if key not in items}
+    retained.update(items)
+    items = retained
     save_availability(out_dir / "files.json", items, library_url=library_url)
     grouped: list[tuple[Preset, list[Paper]]] = []
     limit = 1
@@ -60,7 +65,7 @@ def run_fetch(
         limit = max(limit, len(topic_papers))
     write_bibliography(
         out_dir / "bibliography.md",
-        grouped,
+        with_added(grouped, out_dir),
         generated_on=generated_on,
         limit=limit,
         availability=items,

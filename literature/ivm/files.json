@@ -238,6 +238,13 @@
       "path": "",
       "reason": "открытые ссылки не отдали файл pdf, docx или djvu",
       "source_url": ""
+    },
+    "doi:10.1016/j.fertnstert.2007.02.011": {
+      "status": "linked",
+      "format": "pdf",
+      "path": "",
+      "reason": "",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4624406/pdf/nihms730101.pdf"
     }
   }
 }

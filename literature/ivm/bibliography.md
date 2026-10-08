@@ -992,3 +992,27 @@ The in vitro maturation (IVM) of human oocytes represents a valuable assisted re
 - Файл: pdf, репозиторий статей, `efficacy/2025_Lin_PMC12575120.pdf`
 
 Background Does follicle-stimulating hormone priming improve reproductive outcomes in women undergoing in vitro maturation treatment for infertility?Follicle-stimulating hormone (FSH) is a key endocrine regulator of oocyte folliculogenesis and is crucial for granulosa-oocyte communication and cytoplasmic maturation. In vitro maturation (IVM) offers a lower risk when compared with conventional in vitro fertilization ovarian stimulation; however, widespread clinical adoption is limited by variable success rates and protocol heterogeneity. In regard to optimization strategies, FSH priming has been proposed to enhance oocyte competence, but its impact remains debatable. Objective To evaluate the effects of FSH priming on oocyte maturation and reproductive potential in IVM cycles for infertile women. Methods Employing PRISMA guidelines, we systematically searched PubMed, Cochrane Library, Embase, and Web of Science for randomized controlled trials comparing FSH-primed versus non-primed IVM cycles in infertile women. The primary outcome was oocyte maturation rate, whereas secondary outcomes included fertilization rate, cleavage rate, pregnancy rate, and implantation rate. Data pooled used random-effects models, with heterogeneity assessed by I 2 statistic. Results Six randomized controlled trials comprising of 497 women were analyzed. FSH priming was associated with a statistically significant increase in oocyte maturation rate [OR 1.24(95% CI, 1.05-1.45)] when compared with the non-stimulated group. However, pooled analysis showed no significant differences in fertilization rate or clinical pregnancy rate between groups. Conclusion FSH priming has been shown to enhance oocyte maturation rate in in vitro maturation cycles. However, current evidence shows that gonadotropin does not significantly improve fertilization or pregnancy outcomes.
+
+## Добавлено вручную
+
+Статьи, добавленные отдельно от автоматической выгрузки Europe PMC.
+
+Запрос: `вручную`
+
+Найдено в этой выгрузке: 1.
+
+### 1. A quantitative assessment of follicle size on oocyte developmental competence.
+
+- Год: 2008
+- Авторы: Rosen MP, Shen S, Dobson AT, Rinaudo PF, McCulloch CE, Cedars MI.
+- Журнал: Fertility and sterility
+- DOI: 10.1016/j.fertnstert.2007.02.011
+- PMID: 18249377
+- PMCID: PMC4624406
+- Цитирования: 100
+- Открытый доступ: да
+- Типы: research-article; Journal Article
+- Ссылка: https://doi.org/10.1016/j.fertnstert.2007.02.011
+- Файл: pdf, https://pmc.ncbi.nlm.nih.gov/articles/PMC4624406/pdf/nihms730101.pdf
+
+Objective To quantitatively assess the impact of follicle size on oocyte maturation, fertilization, and embryo quality. Design Prospective study. Setting Academic medical center. Patient(s) Couples undergoing ovarian stimulation and in vitro fertilization (IVF). Intervention(s) A total of 235 cycles were monitored prospectively, and 2934 oocytes were collected from five groups of follicle size. Repeated measures multivariate analyses were used to compare the smaller follicle sizes with the lead follicle. Main outcome measure(s) Oocyte maturation, fertilization, and embryo quality. Result(s) Compared with the lead follicular group (>18 mm), the odds of a mature oocyte from a 16 to 18 mm size follicle were 37% and declined progressively with each size. The odds of fertilization of oocytes from follicles 16 to 18 mm in size was 28% less than the lead group and decreased with each size. The rate of polyspermy with conventional insemination was increased for the smaller follicular groups (adjusted odds ratio = 2.37). Follicle size did not predict embryo cell number, but embryos from smaller follicles had a statistically significantly higher fragmentation compared with the lead group. Conclusion(s) The lead follicular group was most likely to have a mature oocyte that was capable of fertilization and best suited for development into a high-quality embryo. The smaller follicles were capable of producing metaphase II oocytes that could fertilize, but at rates approaching only 60% that of the lead follicular group.
