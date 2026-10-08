@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 from knizhny_cherv.models import Paper
@@ -56,6 +57,7 @@ def write_bibliography(
     *,
     generated_on: str,
     limit: int,
+    availability: dict[str, dict] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -66,6 +68,14 @@ def write_bibliography(
         "Аннотации сохранены в соседних CSV и пригодны для скрининга.",
         "",
     ]
+    if availability is not None:
+        lines.extend(
+            [
+                "Полные тексты (pdf, docx, djvu) лежат в отдельном репозитории статей и разложены по темам обзора.",
+                "Если открытую копию скачать нельзя, у записи написано «скачивание невозможно».",
+                "",
+            ]
+        )
     for preset, papers in grouped:
         lines.append(f"## {preset.title}")
         lines.append("")
@@ -95,11 +105,96 @@ def write_bibliography(
                 lines.append(f"- Типы: {paper.pub_types}")
             if paper.url:
                 lines.append(f"- Ссылка: {paper.url}")
+            note = file_note(paper, availability)
+            if note:
+                lines.append(note)
             lines.append("")
             if paper.abstract:
                 lines.append(paper.abstract)
                 lines.append("")
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
+def file_note(paper: Paper, availability: dict[str, dict] | None) -> str:
+    """Строка списка литературы про файл или про невозможность скачать его."""
+    if availability is None:
+        return ""
+    record = availability.get(paper.key())
+    if not record:
+        return "- Файл: ещё не проверялся"
+    if record.get("status") == "saved" and record.get("path"):
+        fmt = str(record.get("format") or "файл")
+        return f"- Файл: {fmt}, репозиторий статей, `{record['path']}`"
+    if record.get("status") == "linked" and record.get("source_url"):
+        return f"- Файл: pdf, {record['source_url']}"
+    reason = str(record.get("reason") or "нет открытого полного текста")
+    return f"- Файл: скачивание невозможно ({reason})"
+
+
+ADDED_PRESET = Preset(
+    id="added",
+    title="Добавлено вручную",
+    question="Статьи, добавленные отдельно от автоматической выгрузки Europe PMC.",
+    query="вручную",
+)
+
+
+def with_added(grouped: list[tuple[Preset, list[Paper]]], out_dir: Path) -> list[tuple[Preset, list[Paper]]]:
+    """Дописать в конец список статьи из added.csv, если файл есть."""
+    path = out_dir / "added.csv"
+    if not path.exists():
+        return grouped
+    return [*grouped, (ADDED_PRESET, read_csv(path))]
+
+
+def read_csv(path: Path) -> list[Paper]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        papers: list[Paper] = []
+        for row in csv.DictReader(handle):
+            try:
+                cited_by = int(row.get("cited_by") or 0)
+            except ValueError:
+                cited_by = 0
+            papers.append(
+                Paper(
+                    query_id=row.get("query_id") or "",
+                    pmid=row.get("pmid") or "",
+                    pmcid=row.get("pmcid") or "",
+                    doi=row.get("doi") or "",
+                    year=row.get("year") or "",
+                    title=row.get("title") or "",
+                    authors=row.get("authors") or "",
+                    journal=row.get("journal") or "",
+                    cited_by=cited_by,
+                    open_access=(row.get("open_access") or "") == "yes",
+                    pub_types=row.get("pub_types") or "",
+                    abstract=row.get("abstract") or "",
+                    url=row.get("url") or "",
+                )
+            )
+    return papers
+
+
+def load_availability(path: Path) -> dict[str, dict] | None:
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return {}
+    items = payload.get("items")
+    if not isinstance(items, dict):
+        return {}
+    return {str(key): value for key, value in items.items() if isinstance(value, dict)}
+
+
+def save_availability(path: Path, items: dict[str, dict], *, library_url: str = "") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and not library_url:
+        previous = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(previous, dict):
+            library_url = str(previous.get("library_url") or "")
+    payload = {"library_url": library_url, "items": items}
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def dedupe(papers: list[Paper]) -> list[Paper]:
