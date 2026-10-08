@@ -13,6 +13,7 @@ from knizhny_cherv.cli import main
 from knizhny_cherv.fulltext import FullTextError, fetch_fulltext_xml
 from knizhny_cherv.prozektor import (
     classify,
+    format_reference,
     parse_article,
     prozektor_of,
     render_markdown,
@@ -195,9 +196,15 @@ class PlainArticleTests(unittest.TestCase):
         self.assertIn("## Данные литобзора", markdown)
         self.assertIn("## Результаты", markdown)
         self.assertIn("## Протоколы", markdown)
-        self.assertIn("Oocytes were retrieved with a 19-gauge needle at 80 mmHg.", markdown)
+        self.assertIn("| # | Раздел | Цитата | Ссылки |", markdown)
+        self.assertNotIn("Без ссылок", markdown)
+        self.assertIn("### Как сделать IVM в этой работе", markdown)
+        self.assertIn("Пунктируют иглой 19 gauge", markdown)
+        self.assertIn("1. Oocytes were retrieved with a 19-gauge needle at 80 mmHg.", markdown)
         self.assertIn("Язык цитат: английский", markdown)
-        self.assertNotIn("Some paper about oocytes", markdown)
+        cited = next(quote for quote in self.prozektor.by_bucket("literature") if "has been shown" in quote.text)
+        self.assertTrue(any("Some paper about oocytes" in ref.text for ref in cited.refs))
+        self.assertIn("Some paper about oocytes", markdown)
 
 
 class ClassifyEdgeTests(unittest.TestCase):
@@ -319,6 +326,71 @@ class _Body:
         return False
 
 
+class DocxTests(unittest.TestCase):
+    def test_docx_keeps_the_original_sentence(self):
+        import zipfile
+
+        from knizhny_cherv.docx_card import write_docx
+
+        prozektor = prozektor_of(parse_article(ARTICLE, source="article.txt"))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "card.docx"
+            write_docx(path, prozektor)
+            with zipfile.ZipFile(path) as archive:
+                xml = archive.read("word/document.xml").decode("utf-8")
+        self.assertIn("Прозектор: Unstimulated IVM and conventional IVF", xml)
+        self.assertIn("19-gauge needle at 80 mmHg", xml)
+        self.assertIn("Структура эксперимента", xml)
+        self.assertIn("Как сделать IVM в этой работе", xml)
+        self.assertIn("Ссылки", xml)
+        self.assertNotIn("Без ссылок", xml)
+        self.assertIn("<w:tbl>", xml)
+        self.assertIn("Some paper about oocytes", xml)
+
+    def test_jats_authors_year_and_doi(self):
+        xml = """<?xml version="1.0"?>
+<article>
+  <front>
+    <article-meta>
+      <article-id pub-id-type="doi">10.1186/s12958-023-01162-x</article-id>
+      <title-group><article-title>IVM still relevant</article-title></title-group>
+      <contrib-group>
+        <contrib contrib-type="author"><name><surname>Das</surname><given-names>M</given-names></name></contrib>
+        <contrib contrib-type="author"><name><surname>Son</surname><given-names>WY</given-names></name></contrib>
+        <contrib contrib-type="editor"><name><surname>Editor</surname><given-names>A</given-names></name></contrib>
+      </contrib-group>
+      <pub-date pub-type="epub"><year>2023</year></pub-date>
+      <abstract><p>IVM has been shown to help women with PCOS (Smith et al., 2020).</p></abstract>
+    </article-meta>
+  </front>
+      <body>
+        <sec><title>Results</title><p>The live birth rate was 22.0% (P &lt; 0.001) [2].</p></sec>
+        <sec sec-type="ref-list"><title>References</title>
+          <ref id="CR2"><label>2</label>
+            <element-citation>
+              <name><surname>Smith</surname><given-names>A</given-names></name>
+              <article-title>Some paper about oocytes</article-title>
+              <year>2020</year>
+              <pub-id pub-id-type="doi">10.1000/ref2</pub-id>
+            </element-citation>
+          </ref>
+        </sec>
+      </body>
+</article>
+"""
+        document = parse_article(xml, source="PMC10664544")
+        self.assertEqual(document.authors, "Das M, Son WY")
+        self.assertEqual(document.year, "2023")
+        self.assertEqual(document.doi, "10.1186/s12958-023-01162-x")
+        markdown = render_markdown(prozektor_of(document))
+        self.assertIn("Авторы: Das M, Son WY", markdown)
+        self.assertIn("DOI: 10.1186/s12958-023-01162-x", markdown)
+        result = next(quote for quote in prozektor_of(document).by_bucket("results") if "22.0%" in quote.text)
+        self.assertEqual(result.refs[0].label, "2")
+        self.assertIn("https://doi.org/10.1000/ref2", format_reference(result.refs[0]))
+        self.assertIn("Some paper about oocytes", markdown)
+
+
 class CliTests(unittest.TestCase):
     def test_prozektor_writes_markdown_and_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -334,7 +406,22 @@ class CliTests(unittest.TestCase):
             table = csv_path.read_text(encoding="utf-8")
             self.assertIn("protocol", table)
             self.assertIn("0.075 IU/mL", table)
-            self.assertNotIn("Some paper about oocytes", text)
+            self.assertIn("1. Smith A. Some paper about oocytes. 2020.", text)
+            self.assertNotIn("Без ссылок", text)
+
+    def test_prozektor_writes_docx_without_markdown(self):
+        import zipfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "article.txt"
+            source.write_text(ARTICLE, encoding="utf-8")
+            docx = root / "card.docx"
+            code = main(["prozektor", str(source), "--docx", str(docx)])
+            self.assertEqual(code, 0)
+            with zipfile.ZipFile(docx) as archive:
+                xml = archive.read("word/document.xml").decode("utf-8")
+            self.assertIn("0.075 IU/mL", xml)
 
     def test_prozektor_requires_one_source(self):
         with tempfile.TemporaryDirectory() as tmp:

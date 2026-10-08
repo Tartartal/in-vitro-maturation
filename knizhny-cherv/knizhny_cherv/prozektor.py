@@ -200,7 +200,7 @@ BUCKET_LEAD = {
     "control": "Чем задано сравнение: контрольная группа, подобранные контроли, группа сопоставления.",
     "literature": "Положения, которые опираются на чужие работы. Это фразы из введения и обсуждения, а не список литературы в конце статьи.",
     "results": "Что авторы сообщают как наблюдение своей работы: частоты, различия, значения P, случаи.",
-    "protocol": "Шаги, дозы, среды и сроки. Они вынуты из методов, даже если в статье стояли вперемешку с дизайном.",
+    "protocol": "Нумерованный список дословных шагов. Перед списком — как это делают.",
 }
 
 BUCKET_EMPTY = {
@@ -258,6 +258,15 @@ _SKIP_INLINE = {"fn", "fn-group"}
 
 
 @dataclass(frozen=True)
+class Reference:
+    """Пункт списка литературы разбираемой статьи."""
+
+    label: str
+    text: str
+    href: str
+
+
+@dataclass(frozen=True)
 class Block:
     section: str
     zone: str
@@ -272,11 +281,15 @@ class Document:
     blocks: list[Block]
     full_text: str
     source: str = ""
+    authors: str = ""
+    year: str = ""
+    doi: str = ""
+    references: tuple[Reference, ...] = ()
 
     @property
     def completeness(self) -> str:
         zones = {block.zone for block in self.blocks}
-        if "methods" in zones and "results" in zones:
+        if "methods" in zones and zones & {"results", "discussion"}:
             return "полный текст"
         return "фрагмент или аннотация"
 
@@ -287,6 +300,7 @@ class Quote:
     section: str
     text: str
     plain: str
+    refs: tuple[Reference, ...] = ()
 
 
 @dataclass
@@ -473,6 +487,178 @@ def classify(text: str, zone: str, *, protocol: bool) -> set[str]:
     return buckets
 
 
+def citation_labels(sentence: str) -> list[str]:
+    """Номера в квадратных скобках: [2], [3, 4], [9–11]."""
+    labels: list[str] = []
+    for match in _BRACKET_CIT.finditer(sentence):
+        inner = match.group().strip()[1:-1]
+        for part in re.split(r"\s*,\s*", inner):
+            span = re.match(r"(\d+)\s*[\u2013\-]\s*(\d+)$", part.strip())
+            if span:
+                start, end = int(span.group(1)), int(span.group(2))
+                if 0 < end - start <= 20:
+                    labels.extend(str(number) for number in range(start, end + 1))
+                else:
+                    labels.extend((span.group(1), span.group(2)))
+                continue
+            number = re.search(r"\d+", part)
+            if number:
+                labels.append(number.group())
+    unique: list[str] = []
+    for label in labels:
+        if label not in unique:
+            unique.append(label)
+    return unique
+
+
+def resolve_references(sentence: str, references: tuple[Reference, ...]) -> tuple[Reference, ...]:
+    """Найти в списке литературы статьи те пункты, на которые ссылается предложение."""
+    if not references:
+        return ()
+    by_label = {ref.label: ref for ref in references}
+    found: list[Reference] = []
+    seen: set[str] = set()
+    for label in citation_labels(sentence):
+        ref = by_label.get(label)
+        if ref and ref.label not in seen:
+            found.append(ref)
+            seen.add(ref.label)
+    for match in _AUTHOR_YEAR.finditer(sentence):
+        chunk = match.group()
+        years = re.findall(r"\d{4}", chunk)
+        surnames = [name for name in re.findall(r"[A-Z][A-Za-z'’\-]+", chunk) if name.lower() != "et"]
+        for ref in references:
+            if ref.label in seen:
+                continue
+            haystack = ref.text.lower()
+            if years and surnames and any(year in ref.text for year in years) and any(name.lower() in haystack for name in surnames):
+                found.append(ref)
+                seen.add(ref.label)
+    return tuple(found)
+
+
+def format_reference(ref: Reference) -> str:
+    text = f"{ref.label}. {ref.text}".strip()
+    if ref.href and ref.href not in text:
+        text = f"{text} {ref.href}"
+    return text
+
+
+def format_references(refs: tuple[Reference, ...]) -> str:
+    if not refs:
+        return "—"
+    return "; ".join(format_reference(ref) for ref in refs)
+
+
+_HOW_TO: tuple[tuple[str, str, str], ...] = (
+    (
+        "in vivo oocyte maturation",
+        "созревание in vivo",
+        "Расширенные клетки кумулюса рвут щелевые контакты комплекса, перенос cAMP и cGMP прекращается, мейоз возобновляется через MPF.",
+    ),
+    (
+        "in vitro oocyte maturation",
+        "обычный IVM",
+        "Незрелые комплексы культивируют от профазы I до метафазы II и гонадотропины не вводят.",
+    ),
+    (
+        "fsh priming",
+        "FSH priming",
+        "Несколько дней до пункции вводят ФСГ. Фолликулы 2–6 мм несут рецепторы ФСГ, мейоз in vivo не запускают и забирают незрелые компактные комплексы. В цитируемых работах это 600 МЕ в течение 5 дней со 2-го дня цикла или 150 МЕ в течение 2–3 дней со 2–3-го дня.",
+    ),
+    (
+        "hcgpriming",
+        "hCG priming",
+        "Перед пункцией вводят ХГЧ, чтобы начать созревание in vivo и повысить долю ооцитов, которые дозреют in vitro. У женщин со СПКЯ доля зрелых к 48 часам была выше; без СПКЯ один только ХГЧ исход не улучшал.",
+    ),
+    (
+        "hcg priming",
+        "hCG priming",
+        "Перед пункцией вводят ХГЧ, чтобы начать созревание in vivo и повысить долю ооцитов, которые дозреют in vitro.",
+    ),
+    (
+        "timing of oocyte retrieval",
+        "выбор срока пункции",
+        "Одни ждут лидирующий фолликул 10 мм, другие считают это поводом отменить цикл. Son и соавторы забирают ооциты, пока доминантный фолликул не больше 14 мм, а интервал после ХГЧ удлиняют с 35 до 38 часов.",
+    ),
+    (
+        "oocyte retrieval",
+        "пункцию",
+        "Фолликулы мелкие, примерно 2–12 мм, комплекс сидит на стенке плотнее, чем в ЭКО. Игла обычно 16–21 gauge, в части клиник система из двух игл.",
+    ),
+    (
+        "culture medium",
+        "культуру незрелых ооцитов",
+        "В pre-IVM примерно на 2 часа удерживают ооцит от спонтанного созревания аналогами cAMP, ингибиторами киназ или ФДЭ. В схеме с CNP герминальный пузырёк держат 24 часа, щелевые контакты сохраняются дольше.",
+    ),
+    (
+        "culture time",
+        "оценку зрелости и осеменение",
+        "В циклах с ХГЧ зрелые in vivo ищут в день пункции и на следующий день. В ранних работах зрелость смотрели через 48 или 56 часов культуры.",
+    ),
+    (
+        "embryo transfer",
+        "культуру эмбрионов, перенос и криоконсервацию",
+        "После оплодотворения эмбрионы ведут так же, как в обычном ЭКО. Витрифицируют и дробящиеся эмбрионы, и бластоцисты.",
+    ),
+    (
+        "endometrial preparation",
+        "подготовку эндометрия",
+        "Если к 6–10 дню эндометрий тоньше 6 мм, сравнивали низкие дозы чМГ и микронизированный эстроген 6–12 мг/сут. Эстроген с середины фолликулярной фазы давал лучшее созревание, чем ранний старт.",
+    ),
+    (
+        "freeze all",
+        "freeze-all",
+        "После IVM эмбрионы витрифицируют и переносят в криоцикле. В статье это серия пациенток со СПКЯ и перенос на стадии дробления.",
+    ),
+    (
+        "ivm for pcos",
+        "IVM при СПКЯ",
+        "В цитируемом РКИ делают один цикл без гонадотропинов и переносят одну витрифицированную бластоцисту.",
+    ),
+    (
+        "fertility preservation",
+        "сохранение фертильности",
+        "Незрелые ооциты забирают в любой фазе цикла. Для хотя бы 10 ооцитов в статье называют AFC больше 20 и АМГ 3,7 нг/мл. Культура 48 часов, затем витрификация.",
+    ),
+    (
+        "natural cycle",
+        "natural cycle IVF/IVM",
+        "Вводят 10 000 МЕ ХГЧ, когда доминантный фолликул больше 12 мм, и доводят также ооциты из меньших фолликулов. Сравнивают фолликулы до 10 мм и больше 11 мм.",
+    ),
+    (
+        "poor responder",
+        "IVM у бедных ответчиц",
+        "Если зрелых MII меньше пяти и есть хотя бы один незрелый, его оставляют в культуре до спонтанного созревания и делают ИКСИ.",
+    ),
+    (
+        "long term safety",
+        "витрификацию ооцитов после IVM",
+        "Cohen и соавторы описывают пять живорождений после витрификации и отогрева ооцитов, созревших in vitro, у женщин со СПКЯ.",
+    ),
+    (
+        "key challenges",
+        "поиск незрелых комплексов",
+        "В аспирате комплексы ищут дольше: кумулюс не расширен и по цвету похож на гранулёзу. Среду каждая лаборатория готовит сама.",
+    ),
+    (
+        "ivm protocol",
+        "IVM в этой работе",
+        "Пунктируют иглой 19 gauge при 80 мм рт. ст. Незрелые комплексы культивируют в среде с 0,075 МЕ/мл ФСГ 30 часов и оплодотворяют ИКСИ.",
+    ),
+)
+
+
+def how_to(section: str) -> tuple[str, str]:
+    """Заголовок и описание перед нумерованным списком шагов."""
+    name = section.split("→")[-1].strip()
+    key = _norm_heading(name)
+    for needle, title, body in _HOW_TO:
+        if needle in key:
+            return f"Как сделать {title}", body
+    return f"Как сделать {name}", "Ниже дословные шаги и схемы из статьи, по порядку."
+
+
 def prozektor_of(document: Document) -> Prozektor:
     quotes: list[Quote] = []
     seen: set[tuple[str, str]] = set()
@@ -486,6 +672,7 @@ def prozektor_of(document: Document) -> Prozektor:
             if not chosen:
                 continue
             plain = strip_citations(sentence)
+            refs = resolve_references(sentence, document.references)
             for bucket in BUCKETS:
                 if bucket not in chosen:
                     continue
@@ -493,8 +680,107 @@ def prozektor_of(document: Document) -> Prozektor:
                 if key in seen:
                     continue
                 seen.add(key)
-                quotes.append(Quote(bucket=bucket, section=block.section, text=sentence, plain=plain))
+                quotes.append(Quote(bucket=bucket, section=block.section, text=sentence, plain=plain, refs=refs))
     return Prozektor(document=document, quotes=quotes, sentences_seen=sentences_seen)
+
+
+_BIBLIO_HEADINGS = {
+    "references",
+    "bibliography",
+    "литература",
+    "список литературы",
+    "библиография",
+}
+
+_DOI = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+")
+_URL = re.compile(r"https?://\S+")
+
+
+def _is_bibliography(heading: str) -> bool:
+    return _norm_heading(heading) in _BIBLIO_HEADINGS
+
+
+def _href_from_text(text: str) -> str:
+    url = _URL.search(text)
+    if url:
+        return url.group().rstrip(").,;")
+    doi = _DOI.search(text)
+    if doi:
+        return "https://doi.org/" + doi.group().rstrip(").,;")
+    return ""
+
+
+def _references_from_lines(lines: list[str]) -> tuple[Reference, ...]:
+    refs: list[Reference] = []
+    for line in lines:
+        pieces = re.split(r"(?:(?<=\s)|^)(?=\d+\.\s)", line)
+        for piece in pieces:
+            match = re.match(r"^(\d+)\.?\s+(.*)$", piece.strip())
+            if not match:
+                continue
+            label, body = match.group(1), match.group(2).strip()
+            refs.append(Reference(label=label, text=body, href=_href_from_text(body)))
+    return tuple(refs)
+
+
+def _references_from_jats(article: ET.Element) -> tuple[Reference, ...]:
+    refs: list[Reference] = []
+    for el in article.iter():
+        if _local(el.tag) != "ref":
+            continue
+        label = ""
+        citation = None
+        for child in el.iter():
+            name = _local(child.tag)
+            if name == "label" and not label:
+                label = _clean(_element_text(child))
+            elif name in {"mixed-citation", "element-citation", "citation"} and citation is None:
+                citation = child
+        label = label.rstrip(".")
+        if not label:
+            match = re.search(r"(\d+)$", el.get("id") or "")
+            label = match.group(1) if match else str(len(refs) + 1)
+        source = citation if citation is not None else el
+        text = _spaced_text(source)
+        text = re.sub(rf"^{re.escape(label)}[.\s]+", "", text).strip()
+        refs.append(Reference(label=label, text=text, href=_href_from_element(source) or _href_from_text(text)))
+    return tuple(refs)
+
+
+def _spaced_text(el: ET.Element) -> str:
+    parts: list[str] = []
+
+    def rec(node: ET.Element) -> None:
+        if node.text and node.text.strip():
+            parts.append(node.text.strip())
+        for child in list(node):
+            rec(child)
+            if child.tail and child.tail.strip():
+                parts.append(child.tail.strip())
+
+    rec(el)
+    return _clean(" ".join(parts))
+
+
+def _href_from_element(el: ET.Element) -> str:
+    xlink = "{http://www.w3.org/1999/xlink}href"
+    doi = ""
+    pmid = ""
+    for child in el.iter():
+        name = _local(child.tag)
+        if name not in {"ext-link", "pub-id", "article-id"}:
+            continue
+        kind = (child.get("ext-link-type") or child.get("pub-id-type") or "").lower()
+        raw = (child.get(xlink) or child.get("href") or child.text or "").strip()
+        if kind == "doi" or raw.startswith("10."):
+            doi = raw.removeprefix("https://doi.org/").removeprefix("http://dx.doi.org/")
+        elif kind == "pmid" and raw.isdigit():
+            pmid = raw
+    if doi:
+        return "https://doi.org/" + doi.rstrip(").,;")
+    if pmid:
+        return "https://pubmed.ncbi.nlm.nih.gov/" + pmid
+    return ""
 
 
 def parse_article(text: str, *, source: str = "") -> Document:
@@ -507,6 +793,7 @@ def parse_article(text: str, *, source: str = "") -> Document:
 def parse_plain(text: str, *, source: str = "") -> Document:
     title = ""
     blocks: list[Block] = []
+    bibliography: list[str] = []
     top = ""
     sub = ""
     zone = "other"
@@ -518,13 +805,17 @@ def parse_plain(text: str, *, source: str = "") -> Document:
         return " → ".join(parts) if parts else "Текст"
 
     def flush() -> None:
-        if not buffer or zone == "skip":
-            buffer.clear()
+        if not buffer:
             return
         paragraph = " ".join(" ".join(buffer).split())
         buffer.clear()
-        if paragraph:
-            blocks.append(Block(section=section_path(), zone=zone, protocol_section=proto, text=paragraph))
+        if not paragraph:
+            return
+        if zone == "skip":
+            if _is_bibliography(top):
+                bibliography.append(paragraph)
+            return
+        blocks.append(Block(section=section_path(), zone=zone, protocol_section=proto, text=paragraph))
 
     def take_heading(heading: str, *, top_level: bool) -> None:
         nonlocal title, top, sub, zone, proto
@@ -571,7 +862,58 @@ def parse_plain(text: str, *, source: str = "") -> Document:
     full = "\n".join(block.text for block in blocks)
     if not title:
         title = _first_title(text)
-    return Document(title=title or "Без названия", language=language_of(full), blocks=blocks, full_text=full, source=source)
+    return Document(
+        title=title or "Без названия",
+        language=language_of(full),
+        blocks=blocks,
+        full_text=full,
+        source=source,
+        references=_references_from_lines(bibliography),
+    )
+
+
+def _article_meta(article: ET.Element) -> tuple[str, str, str]:
+    names: list[str] = []
+    for el in article.iter():
+        if _local(el.tag) != "contrib":
+            continue
+        if (el.get("contrib-type") or "author") != "author":
+            continue
+        surname = ""
+        given = ""
+        collab = ""
+        for child in el.iter():
+            local = _local(child.tag)
+            if local == "surname" and not surname:
+                surname = _clean(_element_text(child))
+            elif local == "given-names" and not given:
+                given = _clean(_element_text(child))
+            elif local == "collab" and not collab:
+                collab = _clean(_element_text(child))
+        if surname:
+            names.append(f"{surname} {given}".strip())
+        elif collab:
+            names.append(collab)
+        if len(names) >= 20:
+            break
+    year = ""
+    for el in article.iter():
+        if _local(el.tag) != "pub-date":
+            continue
+        for child in list(el):
+            if _local(child.tag) == "year" and (child.text or "").strip().isdigit():
+                year = child.text.strip()
+                break
+        if year and (el.get("pub-type") or "") in {"epub", "ppub", "collection"}:
+            break
+    doi = ""
+    for el in article.iter():
+        if _local(el.tag) != "article-id":
+            continue
+        if (el.get("pub-id-type") or "").lower() == "doi" and (el.text or "").strip():
+            doi = el.text.strip()
+            break
+    return ", ".join(names), year, doi
 
 
 def parse_jats(xml: str, *, source: str = "") -> Document:
@@ -585,6 +927,8 @@ def parse_jats(xml: str, *, source: str = "") -> Document:
         if _local(el.tag) == "article-title":
             title = _clean(_element_text(el))
             break
+    authors, year, doi = _article_meta(article)
+    references = _references_from_jats(article)
     blocks: list[Block] = []
     for el in list(article):
         if _local(el.tag) == "front":
@@ -606,6 +950,10 @@ def parse_jats(xml: str, *, source: str = "") -> Document:
         blocks=blocks,
         full_text=full,
         source=source,
+        authors=authors,
+        year=year,
+        doi=doi,
+        references=references,
     )
 
 
@@ -614,12 +962,14 @@ def render_markdown(prozektor: Prozektor) -> str:
     lines = [
         f"# Прозектор: {document.title}",
         "",
-        "Цитаты ниже выписаны дословно и оставлены на языке статьи. Английский текст не переводится.",
-        "Колонка «Без ссылок» повторяет ту же фразу без маркеров `[1]`, `[9–11]` и `(Smith et al., 2020)`.",
-        "Слова не заменяются. Если таких маркеров не было, в колонке стоит «—».",
+        "Цитаты дословные и на языке статьи. Английский не переводится.",
+        "В столбце «Ссылки» стоят пункты списка литературы этой статьи, на которые опирается фраза, вместе с адресом, если он в статье есть.",
         "",
-        "Список литературы, благодарности, финансирование, декларации и подписи к рисункам Прозектор не включает.",
+        "Благодарности, финансирование, декларации и подписи к рисункам Прозектор не включает.",
         "",
+        *( [f"- Авторы: {document.authors}"] if document.authors else [] ),
+        *( [f"- Год: {document.year}"] if document.year else [] ),
+        *( [f"- DOI: {document.doi}"] if document.doi else [] ),
         f"- Источник: {document.source or '—'}",
         f"- Язык цитат: {LANGUAGE_NAME.get(document.language, document.language)}",
         f"- Охват: {document.completeness}",
@@ -636,10 +986,12 @@ def render_markdown(prozektor: Prozektor) -> str:
             lines.append(BUCKET_EMPTY[bucket])
             lines.append("")
             continue
-        lines.append("| # | Раздел | Цитата | Без ссылок |")
+        if bucket == "protocol":
+            lines.extend(_protocol_lines(rows))
+            continue
+        lines.append("| # | Раздел | Цитата | Ссылки |")
         lines.append("|---:|---|---|---|")
         for index, quote in enumerate(rows, start=1):
-            plain = "—" if quote.plain == quote.text else quote.plain
             lines.append(
                 "| "
                 + " | ".join(
@@ -647,13 +999,34 @@ def render_markdown(prozektor: Prozektor) -> str:
                         str(index),
                         _cell(quote.section),
                         _cell(quote.text),
-                        _cell(plain),
+                        _cell(format_references(quote.refs)),
                     )
                 )
                 + " |"
             )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _protocol_lines(rows: list[Quote]) -> list[str]:
+    lines: list[str] = []
+    groups: list[tuple[str, list[Quote]]] = []
+    for quote in rows:
+        if not groups or groups[-1][0] != quote.section:
+            groups.append((quote.section, []))
+        groups[-1][1].append(quote)
+    for section, quotes in groups:
+        title, body = how_to(section)
+        lines.append(f"### {title}")
+        lines.append("")
+        lines.append(body)
+        lines.append("")
+        for index, quote in enumerate(quotes, start=1):
+            lines.append(f"{index}. {quote.text}")
+            lines.append("")
+            lines.append(f"   Ссылки: {format_references(quote.refs)}")
+            lines.append("")
+    return lines
 
 
 def write_markdown(path, prozektor: Prozektor) -> None:
@@ -666,7 +1039,7 @@ def write_quotes_csv(path, prozektor: Prozektor) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=("bucket", "section", "quote", "without_citations"),
+            fieldnames=("bucket", "section", "quote", "references"),
         )
         writer.writeheader()
         for quote in prozektor.quotes:
@@ -675,7 +1048,7 @@ def write_quotes_csv(path, prozektor: Prozektor) -> None:
                     "bucket": quote.bucket,
                     "section": quote.section,
                     "quote": quote.text,
-                    "without_citations": quote.plain,
+                    "references": format_references(quote.refs),
                 }
             )
 

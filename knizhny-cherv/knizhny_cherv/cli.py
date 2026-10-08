@@ -11,6 +11,7 @@ from knizhny_cherv.europepmc import SearchError, search
 from knizhny_cherv.export import dedupe, write_bibliography, write_csv
 from knizhny_cherv.fulltext import fetch_fulltext_xml
 from knizhny_cherv.presets import load_presets
+from knizhny_cherv.docx_card import write_docx
 from knizhny_cherv.prozektor import parse_article, prozektor_of, write_markdown, write_quotes_csv
 
 
@@ -49,8 +50,9 @@ def main(argv: list[str] | None = None) -> int:
     prozektor_parser.add_argument("file", nargs="?", type=Path, help="файл статьи: .txt, .md или JATS XML")
     prozektor_parser.add_argument("--pmcid", help="скачать полный текст из Europe PMC")
     prozektor_parser.add_argument("--pmid", help="найти PMCID по PMID и скачать полный текст")
-    prozektor_parser.add_argument("--out", type=Path, required=True, help="Markdown с таблицами")
+    prozektor_parser.add_argument("--out", type=Path, default=None, help="Markdown с таблицами")
     prozektor_parser.add_argument("--csv", type=Path, default=None, help="те же цитаты в CSV")
+    prozektor_parser.add_argument("--docx", type=Path, default=None, help="те же таблицы в .docx")
 
     args = parser.parse_args(argv)
     try:
@@ -101,15 +103,20 @@ def _cmd_prozektor(args: argparse.Namespace) -> int:
     sources = [bool(args.file), bool(args.pmcid), bool(args.pmid)]
     if sum(sources) != 1:
         raise ValueError("нужен один источник: файл, --pmcid или --pmid")
+    if not args.out and not args.csv and not args.docx:
+        raise ValueError("нужен --out, --csv или --docx")
     if args.file:
         text = args.file.read_text(encoding="utf-8")
         source = str(args.file)
     else:
         text, source = fetch_fulltext_xml(pmcid=args.pmcid or "", pmid=args.pmid or "")
     prozektor = prozektor_of(parse_article(text, source=source))
-    write_markdown(args.out, prozektor)
+    if args.out:
+        write_markdown(args.out, prozektor)
     if args.csv:
         write_quotes_csv(args.csv, prozektor)
+    if args.docx:
+        write_docx(args.docx, prozektor)
     counts = {bucket: len(prozektor.by_bucket(bucket)) for bucket in (
         "experiment",
         "control",
@@ -121,7 +128,10 @@ def _cmd_prozektor(args: argparse.Namespace) -> int:
         "структура {experiment}, контроль {control}, литобзор {literature}, "
         "результаты {results}, протоколы {protocol}".format(**counts)
     )
-    print(f"прозектор → {args.out}")
+    if args.out:
+        print(f"прозектор → {args.out}")
+    if args.docx:
+        print(f"прозектор → {args.docx}")
     return 0
 
 

@@ -21,7 +21,10 @@
 ```bash
 python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
 python3 knizhny-cherv/bookworm.py prozektor article.xml --out literature/ivm/prozektor/article.md
+python3 knizhny-cherv/bookworm.py prozektor --pmcid PMC10664544 --docx literature/ivm/prozektor/Das_Son_2023_IVM.docx
 ```
+
+Разбор Das M, Son WY, 2023: [`literature/ivm/prozektor/Das_Son_2023_IVM.docx`](literature/ivm/prozektor/Das_Son_2023_IVM.docx).
 
 ## Пересборка DOCX
 
