@@ -1,0 +1,32 @@
+[
+  {
+    "id": "biology",
+    "title": "Биология и определение",
+    "question": "Что такое клинический IVM ооцитов человека и какие обзоры описывают механизм созревания?",
+    "query": "(TITLE:\"in vitro maturation\" OR TITLE:\"in-vitro maturation\" OR TITLE:\"oocyte in vitro maturation\" OR TITLE:IVM) AND (oocyte OR oocytes) AND (human OR clinical) AND PUB_TYPE:review"
+  },
+  {
+    "id": "indications",
+    "title": "Показания",
+    "question": "При каких показаниях рассматривают IVM: СПКЯ, риск СГЯ, сохранение фертильности?",
+    "query": "(TITLE:\"in vitro maturation\" OR TITLE:IVM) AND (PCOS OR \"polycystic ovary\" OR \"ovarian hyperstimulation\" OR OHSS OR \"fertility preservation\" OR oncofertility) AND (oocyte OR oocytes OR IVF OR ART)"
+  },
+  {
+    "id": "protocols",
+    "title": "Протоколы и культура",
+    "question": "Какие протоколы и среды используют: CAPA-IVM, biphasic, pre-IVM, SPOM?",
+    "query": "(TITLE:CAPA-IVM OR TITLE:\"biphasic IVM\" OR TITLE:\"biphasic in vitro\" OR TITLE:\"pre-IVM\" OR TITLE:prematuration OR TITLE:SPOM OR ABSTRACT:\"CAPA-IVM\") AND (oocyte OR oocytes) AND (human OR women OR patient OR patients OR clinical)"
+  },
+  {
+    "id": "efficacy",
+    "title": "Эффективность",
+    "question": "Как IVM сравнивается с ЭКО по живорождению и в рандомизированных исследованиях?",
+    "query": "(TITLE:\"in vitro maturation\" OR TITLE:IVM) AND (\"live birth\" OR \"live-birth\" OR randomized OR randomised) AND (IVF OR \"in vitro fertilization\" OR \"in vitro fertilisation\" OR PCOS) AND (oocyte OR oocytes OR women)"
+  },
+  {
+    "id": "safety",
+    "title": "Безопасность",
+    "question": "Что известно о выкидышах, неонатальных, акушерских и эпигенетических исходах IVM?",
+    "query": "(TITLE:\"in vitro maturation\" OR TITLE:IVM) AND (neonatal OR obstetric OR congenital OR perinatal OR miscarriage OR epigenetic OR offspring OR \"birth outcome\") AND (oocyte OR PCOS OR IVF) AND (human OR women OR infant OR child)"
+  }
+]

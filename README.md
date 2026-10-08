@@ -14,6 +14,14 @@
 4. Эффективность и безопасность  
 5. Ограничения и перспективы  
 
+## Литературный обзор
+
+Поиск статей и рабочая библиография живут в каталоге [`literature/`](literature/SEARCH_STRATEGY.md). Ищет их проект [Книжный червь](knizhny-cherv/README.md) по Europe PMC.
+
+```bash
+python3 knizhny-cherv/bookworm.py presets --limit 20 --out-dir literature/ivm
+```
+
 ## Пересборка DOCX
 
 ```bash
